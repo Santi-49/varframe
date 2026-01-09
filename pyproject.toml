@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "varframe"
-version = "4.0.0"
+version = "1.0.0"
 description = "Declarative DataFrame variable management with ML model integration"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = {file = "LICENSE"}
 authors = [
-    {name = "Santiago Romagosa"}
+    {name = "Santiago Romagosa", email = "romagosasantiago@gmail.com"}
 ]
 keywords = [
     "pandas",
@@ -18,7 +18,9 @@ keywords = [
     "variables",
     "machine-learning",
     "feature-engineering",
-    "data-pipeline"
+    "data-pipeline",
+    "dag",
+    "workflow"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -68,11 +70,10 @@ all = [
 ]
 
 [project.urls]
-# Uncomment and update when you have these:
-# Homepage = "https://github.com/yourusername/varframe"
+Homepage = "https://github.com/romagosa/varframe"
+Repository = "https://github.com/romagosa/varframe"
 # Documentation = "https://varframe.readthedocs.io"
-# Repository = "https://github.com/yourusername/varframe"
-# Changelog = "https://github.com/yourusername/varframe/blob/main/CHANGELOG.md"
+# Changelog = "https://github.com/romagosa/varframe/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["."]
