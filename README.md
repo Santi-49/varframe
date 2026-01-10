@@ -10,6 +10,32 @@ A declarative, class-based framework for defining, computing, and managing varia
 - **Pandas Compatible** – `VarFrame` behaves like a regular DataFrame
 - **Configurable Warnings** – Control implicit operations and warnings globally
 
+## Why VarFrame?
+
+VarFrame is designed for **complex, production-grade data pipelines** where traceability, correctness, and structure are more important than raw implementation speed.
+
+### The Problem with Traditional Scripts
+In traditional pandas scripts (`df['b'] = df['a'] + 1`), logic is often:
+- **Fragile**: Reordering cells or lines breaks dependencies silently.
+- **Opaque**: It's hard to tell *exactly* which columns are needed effectively.
+- **Hard to Test**: You have to test "intermediate states" of a large dataframe.
+
+### The VarFrame Solution
+VarFrame treats variables as **definitions** (Classes) rather than **steps**.
+
+| Feature | VarFrame | Traditional Script |
+| :--- | :--- | :--- |
+| **Dependency Resolution** | **Automatic (DAG)**. Order doesn't matter; the framework solves it. | **Manual**. You must order operations correctly yourself. |
+| **Logic Encapsulation** | Logic, metadata, and types live in one Class. Self-documenting. | Distributed across scripts. logic often mixed with execution. |
+| **ML Integration** | Models are just "Computed Variables". Predictions are treated like any other column. | often separate "training" and "inference" pipelines. |
+| **Testing** | Unit test single `calculate(df)` methods in isolation. | Integration testing entire scripts is required. |
+
+### Best For
+- **Feature Stores**: Where definitions need to be reused across training and serving.
+- **Complex DAGs**: When variable F depends on E, which depends on D, C, and B...
+- **Ensemble/Stacking**: Where model predictions feed into other models (see `examples/ensemble_demo.py`).
+
+
 ## Installation
 
 ```bash
