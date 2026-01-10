@@ -165,3 +165,51 @@ def _get_all_deps(var: "VariableType") -> List["VariableType"]:
             deps.append(model_cls.target_var)
 
     return deps
+
+
+def explain_dependencies(
+    target_variables: "VariableList",
+    include_model_training_deps: bool = True,
+) -> None:
+    """
+    Print a color-coded dependency list for the given variables.
+
+    Displays the variables in computation order (dependencies first),
+    with color coding for different variable types:
+    - BaseVariable: Green (Input)
+    - DerivedVariable: Yellow (Computed)
+    - ModelVariable (or has model_class): Purple (Model Prediction)
+
+    Args:
+        target_variables: List of variable classes to explain.
+        include_model_training_deps: Whether to include model training dependencies.
+    """
+    from varframe.variables import BaseVariable
+
+    # ANSI color codes
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    PURPLE = "\033[95m"
+    RESET = "\033[0m"
+
+    resolved = resolve_dependencies(
+        target_variables, include_model_training_deps=include_model_training_deps
+    )
+
+    names = ", ".join(v.name for v in target_variables)
+    print(f"To compute {names}, we need:")
+
+    for i, v in enumerate(resolved, 1):
+        # Determine variable type and color
+        if hasattr(v, "model_class") and v.model_class:
+            var_type = "model_prediction"
+            color = PURPLE
+        elif issubclass(v, BaseVariable):
+            var_type = "base"
+            color = GREEN
+        else:
+            var_type = "derived"
+            color = YELLOW
+
+        print(f"  {i}. {color}{v.name}{RESET} ({var_type})")
+    print()

@@ -208,6 +208,13 @@ class VFConfig:
         cls.warnings_enabled = True
         cls._suppressed = False
 
+    @classmethod
+    def null_context(cls) -> "_NullContext":
+        """
+        Returns a context manager that does nothing.
+        """
+        return _NullContext()
+
 
 # ------------------- Context Manager -------------------
 
@@ -226,3 +233,13 @@ class _WarningSuppressionContext:
 
     def __exit__(self, *args: Any) -> None:
         VFConfig._suppressed = self._previous_state
+
+
+class _NullContext:
+    """A context manager that does nothing."""
+
+    def __enter__(self) -> "_NullContext":
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        pass

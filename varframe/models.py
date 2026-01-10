@@ -38,6 +38,7 @@ from varframe.variables import BaseVariable, DerivedVariable
 
 # Forward reference for VarFrame to avoid circular import
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from varframe.dataframe import VarFrame
 

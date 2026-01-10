@@ -179,7 +179,8 @@ VFConfig.reset()
 
 | Method | Description |
 |--------|-------------|
-| `add_variables(*vars)` | Compute and add new variables |
+| `add_variables(*vars, compute=True)` | Compute and add new variables (or register if compute=False) |
+| `add_variable(*vars)` | Alias for `add_variables(*vars)` |
 | `filter_by_type(type)` | Filter to `BaseVariable` or `DerivedVariable` only |
 | `get_variable(name)` | Get variable class by name |
 | `list_variables()` | List all variable names |
@@ -197,7 +198,7 @@ VFConfig.reset()
 
 ## Version
 
-1.0.0
+1.1.0
 
 ## Author
 

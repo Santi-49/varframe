@@ -56,6 +56,7 @@ from varframe.variables import (
 )
 from varframe.dependencies import (
     resolve_dependencies,
+    explain_dependencies,
 )
 from varframe.dataframe import (
     VarFrame,
@@ -80,6 +81,7 @@ __all__ = [
     "DerivedVariable",
     # Dependencies
     "resolve_dependencies",
+    "explain_dependencies",
     # DataFrame
     "VarFrame",
     # Models
@@ -90,4 +92,4 @@ __all__ = [
     "ModelList",
 ]
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

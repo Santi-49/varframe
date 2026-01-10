@@ -279,112 +279,65 @@ class VarFrame(pd.DataFrame):
     def add_variables(
         self,
         *variables: VariableType,
+        compute: bool = True,
         suppress_warnings: bool = False,
     ) -> VarFrame:
         """
-        Compute and add new variables to the DataFrame (in-place).
-
-        This is the primary method for extending a VarFrame with
-        new computed variables, including model predictions. Variables are
-        added to the DataFrame as the single source of truth.
+        Register and optionally compute new variables (in-place).
 
         Args:
-            *variables: Variable classes to compute and add.
+            *variables: Variable classes to add.
+            compute: If True (default), compute variables immediately.
+                If False, just register them (must already exist in DataFrame).
             suppress_warnings: If True, suppress warnings for this call only.
 
         Returns:
             Self, for method chaining.
 
         Raises:
-            KeyError: If a variable's dependencies are not in the DataFrame.
-            RuntimeError: If implicit computation is disabled in VFConfig.
-
-        Example:
-            >>> # Add derived variables
-            >>> vf.add_variables(GapDelta, GapTrend)
-            >>>
-            >>> # Suppress warnings for this call
-            >>> vf.add_variables(Var1, suppress_warnings=True)
+            KeyError: If compute=True and dependencies are missing.
+            RuntimeError: If implicit usage is disabled in VFConfig.
+            ValueError: If compute=True and adding a BaseVariable (must come from raw).
         """
         for var in variables:
-            if var.name in self.columns:
-                # Variable already exists, skip
-                continue
+            if compute:
+                # --- Compute Mode ---
+                if var.name in self.columns:
+                    continue  # Already exists
 
-            # Check permission and warn for implicit computation
-            VFConfig.check_permission(
-                ImplicitOperation.ADD_VARIABLE_COMPUTE,
-                f"Cannot compute variable '{var.name}'. "
-                "Set VFConfig.allow_implicit_compute = True to enable.",
-            )
+                # Note: Explicit addition via add_variables does not trigger implicit warnings.
 
-            if not suppress_warnings:
-                VFConfig.warn(
-                    ImplicitOperation.ADD_VARIABLE_COMPUTE,
-                    f"Implicitly computing variable '{var.name}' not in _variables registry.",
-                    stacklevel=3,
-                )
+                if issubclass(var, BaseVariable):
+                    raise ValueError(
+                        f"Cannot add BaseVariable '{var.name}' to existing DataFrame. "
+                        "BaseVariables can only be computed from raw data."
+                    )
+                else:
+                    self[var.name] = var.compute(self)
 
-            # Compute the variable
-            if issubclass(var, BaseVariable):
-                raise ValueError(
-                    f"Cannot add BaseVariable '{var.name}' to existing DataFrame. "
-                    "BaseVariables can only be computed from raw data."
-                )
             else:
-                # DerivedVariable (including ModelVariable)
-                self[var.name] = var.compute(self)
+                # --- No Compute Mode (Registration Only) ---
+                # Explicit registration - no warning needed.
+                pass
 
-            # Add to variable registry
+            # Common: Add to registry
             if var not in self._variables:
                 self._variables.append(var)
 
         return self
 
-    def add_variables_no_compute(
+    def add_variable(
         self,
         *variables: VariableType,
+        compute: bool = True,
         suppress_warnings: bool = False,
     ) -> VarFrame:
         """
-        Register variables without computing them.
-
-        Use this to add variable metadata without performing computation.
-        The variable columns must already exist in the DataFrame.
-
-        Args:
-            *variables: Variable classes to register (not compute).
-            suppress_warnings: If True, suppress warnings for this call only.
-
-        Returns:
-            Self, for method chaining.
-
-        Raises:
-            RuntimeError: If implicit addition is disabled in VFConfig.
-
-        Example:
-            >>> # Register pre-computed variables
-            >>> vf.add_variables_no_compute(Lap, Gap)
+        Alias for add_variables.
         """
-        for var in variables:
-            # Check permission and warn
-            VFConfig.check_permission(
-                ImplicitOperation.ADD_VARIABLE_NO_COMPUTE,
-                f"Cannot add variable '{var.name}' without computation. "
-                "Set VFConfig.allow_implicit_compute = True to enable.",
-            )
-
-            if not suppress_warnings:
-                VFConfig.warn(
-                    ImplicitOperation.ADD_VARIABLE_NO_COMPUTE,
-                    f"Adding variable '{var.name}' to registry without computation.",
-                    stacklevel=3,
-                )
-
-            if var not in self._variables:
-                self._variables.append(var)
-
-        return self
+        return self.add_variables(
+            *variables, compute=compute, suppress_warnings=suppress_warnings
+        )
 
     def resolve(
         self,
@@ -443,17 +396,112 @@ class VarFrame(pd.DataFrame):
                 stacklevel=3,
             )
 
-        # Compute missing variables in order
-        for var in missing_vars:
-            if issubclass(var, BaseVariable):
-                self[var.name] = var.compute(self._df_raw)
-            else:
-                self[var.name] = var.compute(self)
+        if suppress_warnings:
+            context = VFConfig.suppress_warnings()
+        else:
+            context = VFConfig.null_context()
 
-            if var not in self._variables:
-                self._variables.append(var)
+        with context:
+            # Compute missing variables in order
+            for var in missing_vars:
+                if issubclass(var, BaseVariable):
+                    self[var.name] = var.compute(self._df_raw)
+                else:
+                    self[var.name] = var.compute(self)
+
+                if var not in self._variables:
+                    self._variables.append(var)
 
         return self
+
+    def explain_calculation(
+        self,
+        target_variables: VariableList,
+        legend: bool = False,
+    ) -> None:
+        """
+        Explain the calculation plan for the given variables given the current DataFrame state.
+
+        Prints a color-coded list indicating:
+        - Variable Type (Base, Derived, Model)
+        - Calculation Status (Ready vs Needs Calculation)
+        - Warnings (Implicit computation, Auto-training, Inference)
+
+        Args:
+            target_variables: List of variable classes to explain.
+            legend: If True, print a legend for the warning codes.
+        """
+        from varframe.variables import BaseVariable
+        from varframe.config import VFConfig, ImplicitOperation
+
+        # ANSI color codes
+        GREEN = "\033[92m"
+        YELLOW = "\033[93m"
+        PURPLE = "\033[95m"
+        ORANGE = "\033[33m"
+        GREY = "\033[90m"
+        RESET = "\033[0m"
+
+        resolved = resolve_dependencies(target_variables)
+
+        names = ", ".join(v.name for v in target_variables)
+        print(f"Calculation Plan for {names}:")
+
+        used_codes = set()
+        # Mapping: Code -> (Description, ConfigCheck)
+        warning_defs = {
+            "I": ("Implicit Compute", VFConfig.warn_add_variable_compute),
+            "T": ("Auto-Train Model", VFConfig.warn_train_model),
+            "M": ("Model Inference", VFConfig.warn_infer_model),
+        }
+
+        for i, v in enumerate(resolved, 1):
+            # 1. Determine Type
+            if hasattr(v, "model_class") and v.model_class:
+                var_type = "model_prediction"
+                color = PURPLE
+            elif issubclass(v, BaseVariable):
+                var_type = "base"
+                color = GREEN
+            else:
+                var_type = "derived"
+                color = YELLOW
+
+            # 2. Determine Status
+            exists = v.name in self.columns
+            status_icon = "✅" if exists else "⏳"
+            
+            # 3. Predict Warnings
+            current_codes = []
+            if not exists:
+                # Implicit Variable Warning
+                if v not in self._variables and warning_defs["I"][1]:
+                     current_codes.append("I")
+
+                # Model Warnings
+                if var_type == "model_prediction" and v.model_class:
+                    if not v.model_class.is_trained and warning_defs["T"][1]:
+                         current_codes.append("T")
+                    if warning_defs["M"][1]:
+                        current_codes.append("M")
+            
+            used_codes.update(current_codes)
+            
+            # Formatting
+            line = f"  {i}. {status_icon} {color}{v.name}{RESET} ({var_type})"
+            if current_codes:
+                codes_str = ",".join(current_codes)
+                # Subtle grey for the warning hints
+                line += f" {GREY}⚠ [{codes_str}]{RESET}"
+            
+            print(line)
+        
+        if legend and used_codes:
+            print("\nLegend:")
+            for code in sorted(used_codes):
+                desc = warning_defs[code][0]
+                print(f"  {GREY}⚠ [{code}]{RESET} : {desc}")
+        print()
 
     @classmethod
     def from_pandas(

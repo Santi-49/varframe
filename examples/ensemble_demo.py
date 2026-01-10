@@ -30,6 +30,7 @@ try:
         ModelVariable,
         VarFrame,
         resolve_dependencies,
+        explain_dependencies,
     )
 except ImportError:
     print("Error: varframe package not found. Please install it first:")
@@ -129,7 +130,7 @@ if SKLEARN_AVAILABLE:
     # 4. Define Model Variables (predictions as variables)
     # ==========================================
 
-    class PredictedGapDelta(ModelVariable):
+    class PredictedGapDeltaRF(ModelVariable):
         """Random Forest prediction for gap delta."""
 
         name = "predicted_gap_delta_rf"
@@ -156,7 +157,7 @@ if SKLEARN_AVAILABLE:
 
         name = "gap_delta_ensemble"
         input_vars = [
-            PredictedGapDelta,
+            PredictedGapDeltaRF,
             PredictedGapDeltaLinear,
             PredictedGapDeltaRidge,
         ]
@@ -200,12 +201,11 @@ def main():
     # ==========================================
 
     print("=== CASE 1: VarFrame(df_raw, [FinalVar]) ===")
-    print("Request: VarFrame(df_raw, [PredictedGapDelta])")
-    print("DAG resolves: Lap, Gap, TireAge, GapDelta -> train model -> predict")
+    print("Request: VarFrame(df_raw, [PredictedGapDeltaRF])")
     print()
 
     # Show what dependencies are resolved
-    resolved = resolve_dependencies([PredictedGapDelta])
+    resolved = resolve_dependencies([PredictedGapDeltaRF])
     print(f"Resolved variables: {[v.name for v in resolved]}")
     print()
 
@@ -214,7 +214,7 @@ def main():
     # 2. Computes GapDelta (dependency)
     # 3. Auto-trains the model (if not trained) with WARNING
     # 4. Makes prediction
-    vf = VarFrame(df_raw, [PredictedGapDelta])
+    vf = VarFrame(df_raw, [PredictedGapDeltaRF])
 
     print("Result DataFrame:")
     print(vf)
@@ -228,16 +228,6 @@ def main():
     print("vf = VarFrame(df_raw, compute=False)")
     print("vf.resolve(PredictedGapDeltaEnsemble)")
     print()
-
-    # Reset model training state for demo purposes
-    GapDeltaPredictorRF.is_trained = False
-    GapDeltaPredictorRF.model = None
-    GapDeltaLinear.is_trained = False
-    GapDeltaLinear.model = None
-    GapDeltaRidge.is_trained = False
-    GapDeltaRidge.model = None
-    GapDeltaEnsemble.is_trained = False
-    GapDeltaEnsemble.model = None
 
     # Start with EMPTY vf - just store df_raw, compute nothing yet!
     vf2 = VarFrame(df_raw, compute=False)
@@ -264,34 +254,59 @@ def main():
     # CASE 3: Show dependency resolution for ensemble
     # ==========================================
 
-    print("=== CASE 3: Full Ensemble DAG Resolution ===")
-    resolved_ensemble = resolve_dependencies([PredictedGapDeltaEnsemble])
-    print("To compute PredictedGapDeltaEnsemble, we need:")
-    for i, v in enumerate(resolved_ensemble, 1):
-        var_type = "base" if issubclass(v, BaseVariable) else "derived"
-        if hasattr(v, "model_class") and v.model_class:
-            var_type = "model_prediction"
-        print(f"  {i}. {v.name} ({var_type})")
+    print("Final vf2 columns:", list(vf2.columns))
+    print()
+    print("Result DataFrame:")
+    print(vf2)
     print()
 
     # ==========================================
-    # Summary
+    # CASE 3: Show dependency resolution for ensemble
     # ==========================================
 
-    print("=" * 60)
-    print("SUMMARY: VarFrame API")
-    print("=" * 60)
-    print()
-    print("API Usage:")
-    print("  vf = VarFrame(df_raw, [FinalVar])")
-    print("  vf = VarFrame(df_raw, compute=False)  # lazy")
-    print()
-    print("Features:")
-    print("  1. Auto-resolves ALL dependencies via DAG")
-    print("  2. vf.resolve(FinalVar) - resolve on existing vf")
-    print("  3. Models AUTO-TRAINED if not trained (with warning)")
-    print("  4. df_raw stored internally for BaseVariable resolution")
-    print()
+    print("=== CASE 3: Show Ensemble DAG Resolution ===")
+    explain_dependencies([PredictedGapDeltaEnsemble])
+
+    # ==========================================
+    # CASE 4: Show State-Aware Calculation Plan
+    # ==========================================
+
+    print("=== CASE 4: State-Aware Calculation Plan ===")
+    print("Start with new empty VarFrame (vf3) and ask for plan:")
+
+    # Reset model training state to trigger warnings (since they were trained in previous cases)
+    GapDeltaPredictorRF.is_trained = False
+    GapDeltaLinear.is_trained = False
+    GapDeltaRidge.is_trained = False
+    GapDeltaEnsemble.is_trained = False
+
+    vf3 = VarFrame(df_raw, variables=[Gap, GapDelta])
+    vf3.add_variable(TireAge, compute=False)
+    vf3.explain_calculation([PredictedGapDeltaEnsemble], legend=True)
+
+    # ==========================================
+    # CASE 5: Partial Partial State (Linear Model Ready)
+    # ==========================================
+
+    print("=== CASE 5: Partial State (Linear Model Ready) ===")
+    print("Pre-calculating PredictedGapDeltaLinear, then asking for Ensemble plan:\n")
+
+    # Reset all models first to simulate fresh start
+    GapDeltaPredictorRF.is_trained = False
+    GapDeltaLinear.is_trained = False
+    GapDeltaRidge.is_trained = False
+    GapDeltaEnsemble.is_trained = False
+
+    vf4 = VarFrame(df_raw, compute=False)
+    
+    # Pre-calculate one dependency (Linear Model)
+    # This acts as an explicit compute, so it will train the Linear model
+    vf4.resolve(PredictedGapDeltaLinear, suppress_warnings=True)
+
+    # Now explain the full ensemble
+    # Linear should be Ready ✅
+    # Others should be Needs Calculation ⏳
+    vf4.explain_calculation([PredictedGapDeltaEnsemble], legend=True)
 
 
 if __name__ == "__main__":
