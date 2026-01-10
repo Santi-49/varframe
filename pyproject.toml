@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "varframe"
 version = "1.1.0"
-description = "Declarative DataFrame variable management with ML model integration"
+description = "Declarative DataFrame variable management with automatic DAG dependency resolution and ML model integration"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
@@ -16,11 +16,13 @@ keywords = [
     "pandas",
     "dataframe",
     "variables",
+    "dag",
     "machine-learning",
     "feature-engineering",
     "data-pipeline",
-    "dag",
-    "workflow"
+    "workflow",
+    "data-science",
+    "etl"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
