@@ -70,8 +70,8 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/romagosa/varframe"
-Repository = "https://github.com/romagosa/varframe"
+Homepage = "https://github.com/Santi-49/varframe"
+Repository = "https://github.com/Santi-49/varframe"
 # Documentation = "https://varframe.readthedocs.io"
 # Changelog = "https://github.com/romagosa/varframe/blob/main/CHANGELOG.md"
 
