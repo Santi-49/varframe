@@ -36,6 +36,18 @@ plugins:
           paths: [.]
           options:
             docstring_style: google
+            show_root_heading: true
+            heading_level: 3
+            filters:
+              - "!^__init_subclass__$"
+              - "!^prepare_X$"
+              - "!^prepare_y$"
+              - "!^get_description$"
+              - "!^_constructor$"
+              - "!^_discover_all_variables$"
+              - "!^__getitem__$"
+              - "!^__init__$"
+              - "!^__repr__$"
 
 nav:
   - Home: index.md

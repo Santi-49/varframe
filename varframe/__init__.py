@@ -20,21 +20,18 @@ Quick Start:
     ... )
     >>>
     >>> class Lap(BaseVariable):
-    ...     name = "lap"
     ...     raw_column = "lap_num"
     ...     dtype = "int"
     >>>
     >>> class Gap(BaseVariable):
-    ...     name = "gap"
     ...     raw_column = "gap"
     >>>
     >>> class GapDelta(DerivedVariable):
-    ...     name = "gap_delta"
     ...     dependencies = [Gap]
     ...
     ...     @classmethod
     ...     def calculate(cls, df):
-    ...         return df["gap"] - df["gap"].shift(1)
+    ...         return df[Gap.name] - df[Gap.name].shift(1)
     >>>
     >>> vf = VarFrame(df_raw, [Lap, Gap, GapDelta])
 
@@ -92,4 +89,4 @@ __all__ = [
     "ModelList",
 ]
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"

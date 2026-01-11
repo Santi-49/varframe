@@ -4,6 +4,7 @@
 
 [![PyPI version](https://badge.fury.io/py/varframe.svg)](https://badge.fury.io/py/varframe)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://github.com/santi-49/varframe)
 
 VarFrame is a Python library designed to bring structure, reproducibility, and maintainability to your data science and machine learning pipelines. It transforms your data processing from a linear script into a robust, self-documenting graph of dependencies.
 
