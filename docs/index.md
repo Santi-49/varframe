@@ -1,4 +1,4 @@
-# VarFrame
+# Welcome to VarFrame
 
 **Declarative DataFrame variable management with automatic DAG dependency resolution.**
 
@@ -6,13 +6,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 VarFrame is a Python library designed to bring structure, reproducibility, and maintainability to your data science and machine learning pipelines. It transforms your data processing from a linear script into a robust, self-documenting graph of dependencies.
-
-## Documentation
-
-**[Read the full documentation](https://santi-49.github.io/varframe/)** (or run `mkdocs serve` locally).
-
-*   **[User Guide](https://santi-49.github.io/varframe/user_guide/)**: Detailed concepts, lazy loading, and ML integration.
-*   **[API Reference](https://santi-49.github.io/varframe/api_reference/)**: Class and function specifications.
 
 ---
 
@@ -95,3 +88,8 @@ print(vf.df)
 # 1     2.0  12.566371
 # 2     5.0  78.539816
 ```
+
+## Next Steps
+
+*   Check out the **[User Guide](user_guide.md)** for deep dives into Lazy Loading, Machine Learning integration, and Data I/O.
+*   See the **[API Reference](api_reference.md)** for detailed class documentation.
