@@ -55,7 +55,7 @@ class VarFrame(pd.DataFrame):
     """
 
     # Tell pandas to preserve these attributes during operations
-    _metadata = ["_variables", "_df_raw"]
+    _metadata = ["_variables", "_df_raw", "name"]
 
     def __init__(
         self,
@@ -63,6 +63,7 @@ class VarFrame(pd.DataFrame):
         variables: Optional[VariableList] = None,
         compute: bool = True,
         auto_resolve: bool = True,
+        name: str = "varframe",
         **kwargs: Any,
     ) -> None:
         """
@@ -115,6 +116,8 @@ class VarFrame(pd.DataFrame):
             super().__init__(index=df_raw.index, **kwargs)
         else:
             super().__init__(**kwargs)
+
+        self.name = name
 
         # Compute variables if requested
         if vars_to_compute and df_raw is not None:
@@ -397,6 +400,154 @@ class VarFrame(pd.DataFrame):
         """
         return pd.DataFrame(self)
 
+    def to_csv(
+        self,
+        path_or_buf: Optional[Union[str, Any]] = None,
+        *args: Any,
+        include: Optional[List[str]] = None,
+        variables: Optional[VariableList] = None,
+        **kwargs: Any,
+    ) -> Optional[str]:
+        """
+        Write object to a comma-separated values (csv) file.
+        
+        Enhancements over pandas.to_csv:
+        - Supports `include` and `variables` to compute lazy variables on-the-fly.
+        - Warns if registered variables are not included in the export.
+        - Defaults to {self.name}.csv if path is not provided.
+        """
+        from varframe.config import VFConfig
+        
+        # 1. Resolve Data
+        if include or variables:
+            df_to_export = self.view(include=include, variables=variables)
+        else:
+            df_to_export = self
+            
+        # 2. Prevent implicit data loss (Warn if variables are missing)
+        # Check which variables are in the export
+        exported_cols = set(df_to_export.columns)
+        missing_vars = [
+            v.name for v in self._variables 
+            if v.name not in exported_cols and v.name not in self.columns
+        ]
+        
+        # Also check for variables present in self but not in export (if view filtered them)
+        excluded_present_vars = [
+             v.name for v in self._variables
+             if v.name in self.columns and v.name not in exported_cols
+        ]
+        
+        if missing_vars:
+             path_str = str(path_or_buf) if path_or_buf else "output"
+             VFConfig.warn(
+                ImplicitOperation.ADD_VARIABLE_COMPUTE, # Reusing generic warning op
+                f"Exporting to {path_str} without computing lazy variables: {missing_vars}. "
+                "Use `include=['all']` or `variables=[...]` to compute them during export.",
+             )
+
+        # 3. Resolve Path
+        if path_or_buf is None:
+            path_or_buf = f"{self.name}.csv"
+            
+        if hasattr(df_to_export, "to_pandas"):
+            return df_to_export.to_pandas().to_csv(path_or_buf, *args, **kwargs)
+        else:
+            return df_to_export.to_csv(path_or_buf, *args, **kwargs)
+
+    def to_parquet(
+        self,
+        path: Optional[Union[str, Any]] = None,
+        *args: Any,
+        include: Optional[List[str]] = None,
+        variables: Optional[VariableList] = None,
+        **kwargs: Any,
+    ) -> Optional[bytes]:
+        """
+        Write object to a binary parquet file.
+
+        Enhancements over pandas.to_parquet:
+        - Supports `include` and `variables` to compute lazy variables on-the-fly.
+        - Warns if registered variables are not included in the export.
+        - Defaults to {self.name}.parquet if path is not provided.
+        - Saves variable names in file metadata.
+        """
+        import json
+        from varframe.config import VFConfig
+        
+        # 1. Resolve Data
+        if include or variables:
+            df_to_export = self.view(include=include, variables=variables)
+        else:
+            df_to_export = self
+            
+        # 2. Prevent implicit data loss
+        exported_cols = set(df_to_export.columns)
+        missing_vars = [
+            v.name for v in self._variables 
+            if v.name not in exported_cols and v.name not in self.columns
+        ]
+        
+        if missing_vars:
+             path_str = str(path) if path else "output"
+             VFConfig.warn(
+                ImplicitOperation.ADD_VARIABLE_COMPUTE,
+                f"Exporting to {path_str} without computing lazy variables: {missing_vars}. "
+                "Use `include=['all']` or `variables=[...]` to compute them during export.",
+             )
+
+        # 3. Resolve Path
+        if path is None:
+            path = f"{self.name}.parquet"
+            
+        # 4. Prepare Metadata (Strategy B)
+        # Get existing keyword args or creating new dict
+        # pyarrow.Table.from_pandas uses 'preserve_index' etc.
+        # to_parquet kwargs are passed to the engine. 
+        # For pyarrow engine (default), we can't easily inject metadata via to_parquet directly 
+        # because pandas abstracts this. 
+        # WORKAROUND: We will use table properties if using pyarrow, 
+        # but to keep it simple and pandas-compliant, we might need a distinct approach.
+        # Actually, pandas >= 1.0 does not easily support custom metadata in to_parquet 
+        # without dropping down to pyarrow directly.
+        
+        try:
+            import pyarrow as pa
+            import pyarrow.parquet as pq
+            
+            # Convert to Table
+            # Handle VarFrame or plain DataFrame
+            if hasattr(df_to_export, "to_pandas"):
+                df_plain = df_to_export.to_pandas()
+            else:
+                df_plain = df_to_export
+                
+            table = pa.Table.from_pandas(df_plain)
+            
+            # Add Metadata
+            custom_meta = {
+                "varframe_variables": json.dumps([v.name for v in self._variables])
+            }
+            # Combine with existing metadata
+            existing_meta = table.schema.metadata or {}
+            combined_meta = {**existing_meta, **{k.encode(): v.encode() for k, v in custom_meta.items()}}
+            table = table.replace_schema_metadata(combined_meta)
+            
+            # Write
+            pq.write_table(table, path, *args, **kwargs)
+            return None
+            
+        except ImportError:
+            # Fallback for when pyarrow is not available or user wants different engine
+             VFConfig.warn(
+                 ImplicitOperation.ADD_VARIABLE_COMPUTE,
+                 "Pyarrow not found or failed. Exporting without VarFrame metadata."
+             )
+             if hasattr(df_to_export, "to_pandas"):
+                 return df_to_export.to_pandas().to_parquet(path, *args, **kwargs)
+             else:
+                 return df_to_export.to_parquet(path, *args, **kwargs)
+
     def add_variables(
         self,
         *variables: VariableType,
@@ -642,6 +793,7 @@ class VarFrame(pd.DataFrame):
         df: pd.DataFrame,
         variables: Optional[VariableList] = None,
         df_raw: Optional[pd.DataFrame] = None,
+        name: str = "varframe",
     ) -> VarFrame:
         """
         Create a VarFrame from a plain pandas DataFrame.
@@ -661,13 +813,156 @@ class VarFrame(pd.DataFrame):
             >>> plain_df = pd.read_pickle("data.pkl")
             >>> vf = VarFrame.from_pandas(plain_df, variables=[Lap, Gap])
         """
-        vf = cls(df_raw=None, variables=None, compute=False)
+        vf = cls(df_raw=None, variables=None, compute=False, name=name)
         for col in df.columns:
             vf[col] = df[col].values
         vf.index = df.index
         vf._variables = list(variables) if variables else []
         vf._df_raw = df_raw
         return vf
+
+    @staticmethod
+    def _discover_all_variables() -> Dict[str, VariableType]:
+        """
+        Recursively discover all BaseVariable and DerivedVariable subclasses.
+        
+        Returns:
+            Dict mapping variable name to the class.
+        """
+        discovered = {}
+        
+        def _scan(cls):
+            # Add self if it's a concrete variable (has a name)
+            if hasattr(cls, "name") and cls.name:
+                discovered[cls.name] = cls
+            
+            # Recurse
+            for sub in cls.__subclasses__():
+                _scan(sub)
+                
+        _scan(BaseVariable)
+        _scan(DerivedVariable)
+        return discovered
+
+    @classmethod
+    def load_csv(
+        cls, 
+        path_or_buf: Union[str, Any], 
+        **kwargs: Any
+    ) -> VarFrame:
+        """
+        Load a VarFrame from a CSV file, automatically discovering variables.
+        
+        This method scans the current Python environment for variable definitions
+        that match the columns in the CSV.
+        
+        Args:
+            path_or_buf: Path to the CSV file.
+            **kwargs: Arguments passed to pd.read_csv.
+            
+        Returns:
+            A reconstructed VarFrame.
+        """
+        df = pd.read_csv(path_or_buf, **kwargs)
+        
+        # Auto-discovery
+        known_vars = cls._discover_all_variables()
+        matched_vars = []
+        
+        for col in df.columns:
+            if col in known_vars:
+                matched_vars.append(known_vars[col])
+                
+        # Warn about unmapped columns
+        mapped_names = {v.name for v in matched_vars}
+        unmapped_cols = [col for col in df.columns if col not in mapped_names]
+        
+        if unmapped_cols:
+             from varframe.config import VFConfig, ImplicitOperation
+             VFConfig.warn(
+                 ImplicitOperation.ADD_VARIABLE_NO_COMPUTE,
+                 f"Loaded columns {unmapped_cols} do not match any known Variable class. "
+                 "They will be loaded as plain pandas columns."
+             )
+
+        # Try to infer name from path
+        name = "varframe"
+        if isinstance(path_or_buf, str):
+            import os
+            name = os.path.splitext(os.path.basename(path_or_buf))[0]
+            
+        return cls.from_pandas(df, variables=matched_vars, name=name)
+
+    @classmethod
+    def load_parquet(
+        cls, 
+        path: Union[str, Any], 
+        **kwargs: Any
+    ) -> VarFrame:
+        """
+        Load a VarFrame from a Parquet file, using metadata or auto-discovery.
+        
+        1. Checks for 'varframe_variables' metadata in the file.
+        2. If found, looks up those variables in the environment.
+        3. If not found, falls back to matching column names (like load_csv).
+        
+        Args:
+            path: Path to the Parquet file.
+            **kwargs: Arguments passed to pd.read_parquet.
+            
+        Returns:
+            A reconstructed VarFrame.
+        """
+        import json
+        
+        # Load data
+        df = pd.read_parquet(path, **kwargs)
+        
+        known_vars = cls._discover_all_variables()
+        matched_vars = []
+        
+        # Try reading metadata (requires pyarrow)
+        try:
+            import pyarrow.parquet as pq
+            meta = pq.read_metadata(path)
+            if meta.metadata and b'varframe_variables' in meta.metadata:
+                var_names = json.loads(meta.metadata[b'varframe_variables'])
+                for name in var_names:
+                    if name in known_vars:
+                        matched_vars.append(known_vars[name])
+                    # Note: We don't warn here if a variable is missing from environment
+                    # because it might simply not be imported yet.
+        except (ImportError, Exception):
+            # Fallback or strict fail? 
+            # Fallback to column matching matches user expectation of "same as CSV"
+            pass
+            
+        # If metadata didn't yield results (or wasn't present), fallback to columns
+        if not matched_vars:
+             for col in df.columns:
+                if col in known_vars:
+                    matched_vars.append(known_vars[col])
+
+        # Warn about unmapped columns
+        mapped_names = {v.name for v in matched_vars}
+        unmapped_cols = [col for col in df.columns if col not in mapped_names]
+        
+        if unmapped_cols:
+             from varframe.config import VFConfig, ImplicitOperation
+             VFConfig.warn(
+                 ImplicitOperation.ADD_VARIABLE_NO_COMPUTE,
+                 f"Loaded columns {unmapped_cols} do not match any known Variable class. "
+                 "They will be loaded as plain pandas columns."
+             )
+
+        # Try to infer name from path
+        name = "varframe"
+        if isinstance(path, str):
+            import os
+            name = os.path.splitext(os.path.basename(path))[0]
+
+        return cls.from_pandas(df, variables=matched_vars, name=name)
+
 
 
 class _VarFrameInternal(VarFrame):
@@ -688,5 +983,9 @@ class _VarFrameInternal(VarFrame):
         # Initialize metadata with defaults
         if not hasattr(self, "_variables"):
             self._variables = []
+        if not hasattr(self, "_variables"):
+            self._variables = []
         if not hasattr(self, "_df_raw"):
             self._df_raw = None
+        if not hasattr(self, "name"):
+            self.name = "varframe"

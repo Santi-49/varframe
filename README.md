@@ -185,6 +185,32 @@ df_base = vf.view(include=["base"])
 df_custom = vf.view(variables=[HugeFeature])
 ```
 
+### Persistence (Import/Export)
+VarFrame provides smart I/O methods that handle variable metadata automatically.
+
+#### Export
+Enhanced `to_csv` and `to_parquet` methods:
+- **Safety**: Warns about uncomputed lazy variables.
+- **On-the-fly**: Use `include` or `variables` to compute during export.
+- **Defaults**: Autosaves to `{vf.name}.csv` if no path provided.
+- **Metadata**: `to_parquet` embeds variable names in file metadata.
+
+```python
+# Export everything (computing lazy vars) to "my_data.csv"
+vf.to_csv("my_data.csv", include=['all'])
+```
+
+#### Import (Auto-Discovery)
+Load data without ensuring variables are manually passed. `VarFrame` scans your environment for matching `BaseVariable` and `DerivedVariable` definitions.
+
+```python
+# Matches columns to your Python classes automatically!
+vf_loaded = VarFrame.load_csv("my_data.csv")
+
+# Parquet is even safer (uses file metadata if available)
+vf_pq = VarFrame.load_parquet("my_data.parquet")
+```
+
 ## API Reference
 
 ### Variable Classes
@@ -206,6 +232,8 @@ df_custom = vf.view(variables=[HugeFeature])
 | `view(include=..., variables=...)` | Export DataFrame with specific variables (handles lazy computation) |
 | `list_variables()` | List all variable names |
 | `describe_variables()` | Summary DataFrame of all variables |
+| `to_csv(...)` / `to_parquet(...)` | Enhanced export with lazy computation & metadata |
+| `load_csv(path)` / `load_parquet(path)` | Class methods to load VarFrame with auto-discovery |
 | `to_pandas()` / `to_ml()` | Convert to plain DataFrame for ML pipelines |
 
 ### BaseModel Methods

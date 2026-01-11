@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-11
+
+### Added
+- **Smart Data Persistence**:
+    - `VarFrame.load_csv(path)`: Reconstructs VarFrames from CSV, automatically discovering and linking variable classes from the environment.
+    - `VarFrame.load_parquet(path)`: Reconstructs VarFrames from Parquet, using embedded metadata for precise linking (fallback to discovery).
+- **Enhanced Export**:
+    - `to_csv` and `to_parquet` now support `include` and `variables` arguments (like `view`) to compute lazy variables during export.
+    - Added safety warnings if registered variables are excluded from the export.
+    - Added `VarFrame.name` attribute; exports default to `{name}.csv/.parquet` if no path is provided.
+- **Parquet Metadata**: Variable definitions are now saved in the Parquet file metadata for reliable restoration.
+- `examples/export_demo.py`: Comprehensive demo of the new Import/Export capabilities.
+
 ## [1.2.1] - 2026-01-11
 
 ### Added
