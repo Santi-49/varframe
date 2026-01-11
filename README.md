@@ -159,6 +159,32 @@ class PredictedGapDelta(ModelVariable):
 vf.add_variables(PredictedGapDelta)
 ```
 
+## Optimization & Export
+
+### Lazy Loading
+Optimize memory by marking variables as `lazy = True`. They are computed on-demand and not stored in the DataFrame.
+
+```python
+class HugeFeature(DerivedVariable):
+    lazy = True
+    dependencies = [RawData]
+
+    @classmethod
+    def calculate(cls, df):
+        return df["raw"] * 1000
+```
+
+### Flexible Views
+Export specific subsets of data using `vf.view()`:
+
+```python
+# Export only base variables
+df_base = vf.view(include=["base"])
+
+# Export specific variables (computes lazy vars on demand)
+df_custom = vf.view(variables=[HugeFeature])
+```
+
 ## API Reference
 
 ### Variable Classes
@@ -166,7 +192,7 @@ vf.add_variables(PredictedGapDelta)
 | Class | Purpose |
 |-------|---------|
 | `BaseVariable` | Maps a raw column (with optional dtype conversion) |
-| `DerivedVariable` | Computed from other variables via `calculate()` |
+| `DerivedVariable` | Computed from other variables. Set `lazy=True` for on-demand computation. |
 | `ModelVariable` | Predictions from an ML model |
 
 ### VarFrame Methods
@@ -177,6 +203,7 @@ vf.add_variables(PredictedGapDelta)
 | `add_variable(*vars)` | Alias for `add_variables(*vars)` |
 | `filter_by_type(type)` | Filter to `BaseVariable` or `DerivedVariable` only |
 | `get_variable(name)` | Get variable class by name |
+| `view(include=..., variables=...)` | Export DataFrame with specific variables (handles lazy computation) |
 | `list_variables()` | List all variable names |
 | `describe_variables()` | Summary DataFrame of all variables |
 | `to_pandas()` / `to_ml()` | Convert to plain DataFrame for ML pipelines |

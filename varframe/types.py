@@ -15,9 +15,10 @@ from typing import List, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from varframe.variables import BaseVariable, DerivedVariable
+    from varframe.models import ModelVariable
 
 # Type representing any variable class
-VariableType = Type["BaseVariable | DerivedVariable"]
+VariableType = Type["BaseVariable | DerivedVariable | ModelVariable"]
 
 # List of variable classes
 VariableList = List[VariableType]

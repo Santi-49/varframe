@@ -103,6 +103,13 @@ class VarFrame(pd.DataFrame):
             else:
                 vars_to_compute = list(variables)
 
+            # Filter out lazy variables from initial computation
+            vars_to_compute = [
+                v
+                for v in vars_to_compute
+                if not (issubclass(v, DerivedVariable) and v.lazy)
+            ]
+
         # Initialize DataFrame with proper index
         if df_raw is not None:
             super().__init__(index=df_raw.index, **kwargs)
@@ -116,10 +123,21 @@ class VarFrame(pd.DataFrame):
                     self[var.name] = var.compute(df_raw)
                 else:
                     self[var.name] = var.compute(self)
-                self._variables.append(var)
+                
+                if var not in self._variables:
+                    self._variables.append(var)
+            
+            # Register remaining variables (lazy ones or non-computed) that were passed in
+            if variables:
+                 for var in variables:
+                     if var not in self._variables:
+                         self._variables.append(var)
+
         elif variables:
             # Store variable list even if not computing
             self._variables = list(variables) if variables else []
+            # Ensure no duplicates if variables were passed
+            self._variables = list(dict.fromkeys(self._variables))
 
     @property
     def _constructor(self) -> Type[VarFrame]:
@@ -203,6 +221,89 @@ class VarFrame(pd.DataFrame):
         data = [var.info() for var in self._variables]
         return pd.DataFrame(data)
 
+    def view(
+        self,
+        include: Optional[List[str]] = None,
+        variables: Optional[VariableList] = None,
+    ) -> pd.DataFrame:
+        """
+        Create a DataFrame view containing only specific variables.
+
+        Args:
+            include: List of variable categories to include.
+                Options: 'base', 'derived', 'lazy', 'model', 'all'.
+                Defaults to ['all'] if both include and variables are None.
+            variables: Explicit list of variable classes to include.
+
+        Returns:
+            A pandas DataFrame with the requested variables. 
+            Lazy variables will be computed on-demand for this view.
+        
+        Example:
+            >>> vf.view(include=['base', 'lazy'])
+            >>> vf.view(variables=[LazySum])
+        """
+        target_vars = []
+
+        # 1. Handle 'variables' argument
+        if variables:
+            target_vars.extend(variables)
+
+        # 2. Handle 'include' argument
+        if include:
+            for category in include:
+                if category == "all":
+                    target_vars.extend(self._variables)
+                elif category == "base":
+                    target_vars.extend(
+                        [v for v in self._variables if issubclass(v, BaseVariable)]
+                    )
+                elif category == "derived":
+                    # Non-lazy derived
+                    target_vars.extend(
+                        [
+                            v
+                            for v in self._variables
+                            if issubclass(v, DerivedVariable) and not v.lazy
+                        ]
+                    )
+                elif category == "lazy":
+                    # Lazy derived
+                    target_vars.extend(
+                        [
+                            v
+                            for v in self._variables
+                            if issubclass(v, DerivedVariable) and v.lazy
+                        ]
+                    )
+                elif category == "model":
+                    target_vars.extend(
+                        [
+                            v
+                            for v in self._variables
+                            if hasattr(v, "model_class") and v.model_class
+                        ]
+                    )
+
+        # Default to 'all' if nothing specified
+        if not target_vars:
+            target_vars = list(self._variables)
+
+        # Remove duplicates while preserving order
+        target_vars = list(dict.fromkeys(target_vars))
+
+        # 3. Construct DataFrame
+        data = {}
+        for var in target_vars:
+            # If standard column, use it (zero copy if possible)
+            if var.name in self.columns:
+                data[var.name] = self[var.name]
+            else:
+                # Must be lazy or missing -> Compute it
+                data[var.name] = var.compute(self)
+
+        return pd.DataFrame(data, index=self.index)
+
     def __getitem__(self, key: Union[str, VariableType, List, slice, pd.Series]) -> Any:
         """
         Access columns by name, variable class, or standard DataFrame indexing.
@@ -223,6 +324,14 @@ class VarFrame(pd.DataFrame):
         """
         # Handle variable class
         if isinstance(key, type) and issubclass(key, (BaseVariable, DerivedVariable)):
+            # Check if it's lazy and missing (Compute just-in-time)
+            if (
+                issubclass(key, DerivedVariable)
+                and key.lazy
+                and key.name not in self.columns
+            ):
+                 return key.compute(self)
+            
             return super().__getitem__(key.name)
 
         # Handle list of variable classes
@@ -234,7 +343,19 @@ class VarFrame(pd.DataFrame):
                 return super().__getitem__(names)
 
         # Default pandas behavior
-        return super().__getitem__(key)
+        try:
+            return super().__getitem__(key)
+        except KeyError:
+            # Check for lazy variable (string access)
+            if isinstance(key, str):
+                var = self.get_variable(key)
+
+                # Case 1: Variable is registered but not in columns (Lazy or missing)
+                if var and issubclass(var, DerivedVariable) and var.lazy:
+                    return var.compute(self)
+                
+            # Re-raise if not handled
+            raise
 
     def __repr__(self) -> str:
         """Return a string representation."""
@@ -371,7 +492,14 @@ class VarFrame(pd.DataFrame):
         all_vars = resolve_dependencies(list(target_variables))
 
         # Filter to only missing variables
+        # Filter to only missing variables
         missing_vars = [v for v in all_vars if v.name not in self.columns]
+        
+        # Split into compute-now vs lazy
+        lazy_vars = [
+            v for v in missing_vars if issubclass(v, DerivedVariable) and v.lazy
+        ]
+        missing_vars = [v for v in missing_vars if v not in lazy_vars]
 
         # Check for missing BaseVariables - need df_raw to compute them
         missing_base = [v for v in missing_vars if issubclass(v, BaseVariable)]
@@ -395,6 +523,11 @@ class VarFrame(pd.DataFrame):
                 f"Implicitly computing {len(missing_vars)} variable(s) not in _variables: {var_names}",
                 stacklevel=3,
             )
+
+        # Register lazy variables (so get_variable works)
+        for var in lazy_vars:
+            if var not in self._variables:
+                self._variables.append(var)
 
         if suppress_warnings:
             context = VFConfig.suppress_warnings()

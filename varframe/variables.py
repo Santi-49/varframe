@@ -146,6 +146,7 @@ class DerivedVariable:
         name (str): The name of the variable in the processed DataFrame.
         dependencies (List[Type]): List of variable classes this depends on.
         dtype (str): The pandas dtype for the result. Defaults to 'float'.
+        lazy (bool): If True, computed on access and not stored in DataFrame. Defaults to False.
 
     Note:
         - Use the class docstring as the variable description.
@@ -167,6 +168,7 @@ class DerivedVariable:
     name: ClassVar[str] = ""
     dependencies: ClassVar[List["VariableType"]] = []
     dtype: ClassVar[str] = "float"
+    lazy: ClassVar[bool] = False
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Validate subclass definition and set defaults."""
@@ -231,11 +233,20 @@ class DerivedVariable:
         """
         # Verify dependencies exist in df
         for dep in cls.dependencies:
-            if dep.name not in df.columns:
-                raise KeyError(
-                    f"Dependency '{dep.name}' not found in DataFrame. "
-                    f"Ensure dependencies are computed before '{cls.name}'."
-                )
+            # If dependency is in columns, we are good
+            if dep.name in df.columns:
+                continue
+
+            # If dependency is Lazy, we assume it can be computed on-demand by __getitem__
+            # so we don't raise KeyError here.
+            is_lazy_dep = getattr(dep, "lazy", False)
+            if is_lazy_dep:
+                continue
+
+            raise KeyError(
+                f"Dependency '{dep.name}' not found in DataFrame. "
+                f"Ensure dependencies are computed before '{cls.name}'."
+            )
         return cls.calculate(df)
 
     @classmethod
@@ -251,6 +262,7 @@ class DerivedVariable:
             "type": "derived",
             "dependencies": [d.name for d in cls.dependencies],
             "dtype": cls.dtype,
+            "lazy": cls.lazy,
             "description": cls.get_description(),
         }
 
