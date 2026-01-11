@@ -43,6 +43,7 @@ Data pipelines often start as simple scripts but quickly grow into unmanageable 
 *   **Lazy Loading**: Defer expensive computations until the data is actually needed.
 *   **ML Integration**: Built-in `BaseModel` and `ModelVariable` to treat model predictions just like any other column.
 *   **Metadata Preserved**: Export to Parquet with variable metadata intact.
+*   **Data Integrity**: Built-in hashing protects against schema drift and silent logic changes.
 
 ## Installation
 

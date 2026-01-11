@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-01-11
+
+### Added
+- **Granular Integrity Checks**: Parquet import/export now includes robust, recursive hashing of variable definitions to ensure data consistency.
+    - Hashes calculation logic (source code), dependencies (recursive), attributes (dtype), and metadata (description/lazy).
+    - Stores hashes in Parquet metadata (`varframe_hashes`).
+    - Compares stored hashes with current environment on load.
+    - **Color-Coded Warnings**:
+        - 🔴 **Red**: Critical changes (Calculation logic, Dependencies, Raw Column).
+        - 🟠 **Orange**: Type changes (Dtype).
+        - ⚪ **White**: Metadata changes (Description, Lazy flag).
+    - Metadata encapsulation prevents trivial documentation changes from invalidating downstream dependencies.
+
 ## [1.3.0] - 2026-01-11
 
 ### Added

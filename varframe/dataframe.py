@@ -528,6 +528,16 @@ class VarFrame(pd.DataFrame):
             custom_meta = {
                 "varframe_variables": json.dumps([v.name for v in self._variables])
             }
+            
+            # Add Hash Metadata
+            try:
+                hashes = {v.name: v.get_hash_components() for v in self._variables}
+                custom_meta["varframe_hashes"] = json.dumps(hashes)
+            except Exception as e:
+                VFConfig.warn(
+                    ImplicitOperation.ADD_VARIABLE_COMPUTE,
+                    f"Failed to compute variable hashes for export: {e}"
+                )
             # Combine with existing metadata
             existing_meta = table.schema.metadata or {}
             combined_meta = {**existing_meta, **{k.encode(): v.encode() for k, v in custom_meta.items()}}
@@ -960,6 +970,71 @@ class VarFrame(pd.DataFrame):
         if isinstance(path, str):
             import os
             name = os.path.splitext(os.path.basename(path))[0]
+
+        # ------------------- Integrity Check -------------------
+        # Compare loaded variables against current environment
+        
+        # Warning Aggregation
+        warnings = []
+        
+        # ANSI Colors
+        RED = "\033[91m"
+        ORANGE = "\033[33m"
+        WHITE = "\033[37m"
+        RESET = "\033[0m"
+        
+        # Only verify if we have matched variables and hashes are available
+        file_hashes = {}
+        if 'meta' in locals() and meta.metadata and b'varframe_hashes' in meta.metadata:
+            try:
+                file_hashes = json.loads(meta.metadata[b'varframe_hashes'])
+            except Exception:
+                pass
+                
+        if file_hashes:
+            for var in matched_vars:
+                if var.name not in file_hashes:
+                    continue
+                    
+                stored = file_hashes[var.name]
+                current = var.get_hash_components()
+                
+                # Check for changes
+                diffs = []
+                severity = 0 # 0=None, 1=White, 2=Orange, 3=Red
+                
+                # 1. Calculation (RED)
+                if stored.get("calc") != current["calc"]:
+                    diffs.append("Calculation logic changed")
+                    severity = max(severity, 3)
+                    
+                # 2. Dependencies (RED) - Note: This catches ripple effects too if hash logic is good
+                if stored.get("deps") != current["deps"]:
+                    diffs.append("Dependencies changed")
+                    severity = max(severity, 3)
+                    
+                # 3. Attributes (ORANGE) - dtype
+                if stored.get("attrs") != current["attrs"]:
+                    diffs.append("Attributes (dtype) changed")
+                    severity = max(severity, 2)
+                    
+                # 4. Metadata (WHITE) - description, lazy
+                if stored.get("meta") != current["meta"]:
+                    diffs.append("Metadata (desc/lazy) changed")
+                    severity = max(severity, 1)
+                    
+                if diffs:
+                    color = WHITE
+                    if severity == 3: color = RED
+                    elif severity == 2: color = ORANGE
+                    
+                    msg = f"{color}Variable '{var.name}': {', '.join(diffs)}{RESET}"
+                    warnings.append(msg)
+                    
+        if warnings:
+            print(f"\n{ORANGE}VarFrame Integrity Check Warnings:{RESET}")
+            for w in warnings:
+                print(f"  {w}")
 
         return cls.from_pandas(df, variables=matched_vars, name=name)
 

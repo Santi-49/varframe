@@ -141,6 +141,22 @@ When exporting, you can force all lazy variables to be computed using `include=[
 vf.to_csv("customer_ltv.csv", index=False, include=['all'])
 ```
 
+## 9. Data Integrity & Hashing
+
+VarFrame ensures that the data you load matches the code you are running. When exporting to Parquet, it embeds a recursive hash of the variable definitions (logic, dependencies, attributes).
+
+When loading, it compares these hashes with your current code and warns you of discrepancies:
+
+*   **Logic Change (Red)**: The calculation method or source column has changed.
+*   **Dependency Change (Red)**: A variable this depends on has changed.
+*   **Type Change (Orange)**: The data type (`dtype`) has changed.
+*   **Metadata Change (White)**: Description or Lazy flag changed (usually safe).
+
+```python
+# Warns if 'AnnualRevenue' logic changed since export
+vf = VarFrame.load_parquet("pipeline_v1.parquet")
+```
+
 ---
 
 ## Full Runnable Code

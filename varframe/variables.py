@@ -35,6 +35,10 @@ import pandas as pd
 if TYPE_CHECKING:
     from varframe.types import VariableType
 
+import hashlib
+import inspect
+import json
+
 __all__ = [
     "BaseVariable",
     "DerivedVariable",
@@ -110,6 +114,33 @@ class BaseVariable:
             ValueError: If the column cannot be cast to the specified `dtype`.
         """
         return df_raw[cls.raw_column].astype(cls.dtype)
+
+    @classmethod
+    def get_hash_components(cls) -> Dict[str, str]:
+        """
+        Get the hash components of the variable definition.
+
+        Returns:
+            Dict with keys: calc, deps, attrs, meta.
+        """
+        # Calc: raw_column
+        calc_hash = hashlib.sha256(cls.raw_column.encode("utf-8")).hexdigest()
+        
+        # Deps: None for BaseVariable
+        deps_hash = hashlib.sha256(b"").hexdigest()
+        
+        # Attrs: dtype
+        attrs_hash = hashlib.sha256(cls.dtype.encode("utf-8")).hexdigest()
+        
+        # Meta: description
+        meta_hash = hashlib.sha256(cls.get_description().encode("utf-8")).hexdigest()
+
+        return {
+            "calc": calc_hash,
+            "deps": deps_hash,
+            "attrs": attrs_hash,
+            "meta": meta_hash,
+        }
 
     @classmethod
     def info(cls) -> Dict[str, Any]:
@@ -248,6 +279,61 @@ class DerivedVariable:
                 f"Ensure dependencies are computed before '{cls.name}'."
             )
         return cls.calculate(df)
+
+    @classmethod
+    def get_hash_components(cls) -> Dict[str, str]:
+        """
+        Get the hash components of the variable definition.
+
+        Returns:
+            Dict with keys: calc, deps, attrs, meta.
+        """
+        # Calc: Source code of calculate method
+        try:
+            source = inspect.getsource(cls.calculate)
+        except (OSError, TypeError):
+            source = ""
+        calc_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        
+        # Deps: Recursive hash of dependencies
+        # We combine the full hashes of all dependencies
+        dep_hashes = []
+        for dep in cls.dependencies:
+            # Recursively get hash (we use a flattened version generally, 
+            # but here we just need a signature of the dependency state).
+            # To avoid infinite recursion in malformed cyclic graphs (though resolve handles that),
+            # we rely on the fact that dependencies must be solved variables.
+            # Ideally, we want the hash of the dependency variable itself.
+            
+            # Note: A dependency change should ripple up. 
+            # We use the dependency's class name + its own component hashes
+            try:
+                d_comps = dep.get_hash_components()
+                # Encapsulate strictly functional components for dependency hash
+                # We exclude 'meta' so that docstring changes don't invalidate downstream calculations
+                functional_comps = {k: v for k, v in d_comps.items() if k != "meta"}
+                d_combined = hashlib.sha256(json.dumps(functional_comps, sort_keys=True).encode("utf-8")).hexdigest()
+                dep_hashes.append(f"{dep.__name__}:{d_combined}")
+            except Exception:
+                # If dependency is broken or not a Variable class
+                dep_hashes.append(f"{dep}:{str(dep)}")
+                
+        deps_str = ",".join(sorted(dep_hashes))
+        deps_hash = hashlib.sha256(deps_str.encode("utf-8")).hexdigest()
+        
+        # Attrs: dtype
+        attrs_hash = hashlib.sha256(cls.dtype.encode("utf-8")).hexdigest()
+        
+        # Meta: description, lazy
+        meta_str = f"{cls.get_description()}|{cls.lazy}"
+        meta_hash = hashlib.sha256(meta_str.encode("utf-8")).hexdigest()
+
+        return {
+            "calc": calc_hash,
+            "deps": deps_hash,
+            "attrs": attrs_hash,
+            "meta": meta_hash,
+        }
 
     @classmethod
     def info(cls) -> Dict[str, Any]:
