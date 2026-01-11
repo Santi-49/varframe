@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-01-11
+
+### Added
+- **Enhanced Load Functions**: `load_csv` and `load_parquet` now support advanced column selection and disambiguation:
+    - `variables`: Whitelist of variable classes to load (implicit disambiguation)
+    - `exclude`: Blacklist of variable classes to exclude
+    - `discard_unmatched`: Drop columns not matching any variable (default: `True`)
+    - `ambiguity`: Dict mapping variable names to specific classes for explicit disambiguation
+- **AmbiguityError Exception**: Raised when multiple variable definitions match the same column name without disambiguation
+- **Parquet Column Selection**: Uses `pyarrow.parquet.read_table(columns=[...])` for efficient I/O when loading specific columns
+- **Validation**: `variables` and `exclude` parameters are mutually exclusive
+
+### Changed
+- **CSV/Parquet Loading**: Now raises `AmbiguityError` when multiple variable definitions exist with the same name (removed score-based matching)
+- **Default `discard_unmatched=True`**: Unmatched columns are now dropped by default
+
+### Fixed
+- Fixed pyarrow schema API compatibility (`meta.schema.names` instead of deprecated `.field()/.length`)
+
 ## [1.4.0] - 2026-01-11
 
 ### Added

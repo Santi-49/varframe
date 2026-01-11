@@ -157,6 +157,39 @@ When loading, it compares these hashes with your current code and warns you of d
 vf = VarFrame.load_parquet("pipeline_v1.parquet")
 ```
 
+## 10. Advanced Loading Options
+
+Both `load_csv` and `load_parquet` support powerful filtering and disambiguation:
+
+### Column Selection
+
+```python
+# Whitelist: Only load specific variables
+vf = VarFrame.load_csv("data.csv", variables=[AvgOrderValue, AnnualRevenue])
+
+# Blacklist: Exclude certain variables
+vf = VarFrame.load_parquet("data.parquet", exclude=[LegacyVariable])
+```
+
+### Handling Ambiguity
+
+When multiple variable classes share the same `name`, you must disambiguate:
+
+```python
+# Explicit disambiguation
+vf = VarFrame.load_csv("data.csv", ambiguity={"revenue": AnnualRevenueV2})
+```
+
+If ambiguity is not resolved, an `AmbiguityError` is raised.
+
+### Unmatched Columns
+
+By default, columns not matching any known variable are dropped. To keep them:
+
+```python
+vf = VarFrame.load_csv("data.csv", discard_unmatched=False)
+```
+
 ---
 
 ## Full Runnable Code

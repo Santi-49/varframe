@@ -65,6 +65,9 @@ from varframe.models import (
     ModelType,
     ModelList,
 )
+from varframe.exceptions import (
+    AmbiguityError,
+)
 
 __all__ = [
     # Config
@@ -87,6 +90,8 @@ __all__ = [
     "ModelRegistry",
     "ModelType",
     "ModelList",
+    # Exceptions
+    "AmbiguityError",
 ]
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"

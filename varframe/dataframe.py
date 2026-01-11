@@ -832,19 +832,23 @@ class VarFrame(pd.DataFrame):
         return vf
 
     @staticmethod
-    def _discover_all_variables() -> Dict[str, VariableType]:
+    def _discover_all_variables() -> Dict[str, List[VariableType]]:
         """
         Recursively discover all BaseVariable and DerivedVariable subclasses.
         
         Returns:
-            Dict mapping variable name to the class.
+            Dict mapping variable name to a list of class definitions (to handle redefinitions).
         """
         discovered = {}
         
         def _scan(cls):
             # Add self if it's a concrete variable (has a name)
             if hasattr(cls, "name") and cls.name:
-                discovered[cls.name] = cls
+                if cls.name not in discovered:
+                    discovered[cls.name] = []
+                # Avoid duplicates in the list
+                if cls not in discovered[cls.name]:
+                     discovered[cls.name].append(cls)
             
             # Recurse
             for sub in cls.__subclasses__():
@@ -858,6 +862,10 @@ class VarFrame(pd.DataFrame):
     def load_csv(
         cls, 
         path_or_buf: Union[str, Any], 
+        variables: Optional[List[VariableType]] = None,
+        exclude: Optional[List[VariableType]] = None,
+        discard_unmatched: bool = True,
+        ambiguity: Optional[Dict[str, VariableType]] = None,
         **kwargs: Any
     ) -> VarFrame:
         """
@@ -868,32 +876,96 @@ class VarFrame(pd.DataFrame):
         
         Args:
             path_or_buf: Path to the CSV file.
+            variables: Whitelist of variable classes to load. If provided, only 
+                these variables will be matched. Acts as implicit disambiguation.
+            exclude: Blacklist of variable classes to exclude from loading.
+                Cannot be used together with `variables`.
+            discard_unmatched: If True (default), columns not matching any known
+                variable are dropped. If False, they are kept as plain columns.
+            ambiguity: Dict mapping variable names to specific classes for 
+                disambiguation when multiple definitions exist with the same name.
             **kwargs: Arguments passed to pd.read_csv.
             
         Returns:
             A reconstructed VarFrame.
+            
+        Raises:
+            ValueError: If both `variables` and `exclude` are provided.
+            AmbiguityError: If multiple variable definitions match a column name
+                and no disambiguation is provided.
         """
+        from varframe.exceptions import AmbiguityError
+        
+        # Validation
+        if variables is not None and exclude is not None:
+            raise ValueError("Cannot use both 'variables' and 'exclude' parameters together.")
+        
         df = pd.read_csv(path_or_buf, **kwargs)
         
         # Auto-discovery
         known_vars = cls._discover_all_variables()
         matched_vars = []
         
+        # Build target names based on whitelist/blacklist
+        if variables is not None:
+            target_names = {v.name for v in variables}
+            # Create a lookup for whitelisted variables by name
+            whitelist_by_name: Dict[str, VariableType] = {v.name: v for v in variables}
+        elif exclude is not None:
+            exclude_names = {v.name for v in exclude}
+            target_names = {col for col in df.columns if col not in exclude_names}
+            whitelist_by_name = None
+        else:
+            target_names = set(df.columns)
+            whitelist_by_name = None
+        
         for col in df.columns:
-            if col in known_vars:
-                matched_vars.append(known_vars[col])
+            if col not in target_names:
+                continue
                 
-        # Warn about unmapped columns
+            if col not in known_vars:
+                continue
+            
+            candidates = known_vars[col]
+            
+            # If whitelist mode, use the whitelisted class directly
+            if whitelist_by_name is not None:
+                if col in whitelist_by_name:
+                    matched_vars.append(whitelist_by_name[col])
+                continue
+            
+            # Check for ambiguity
+            if len(candidates) > 1:
+                # Check if disambiguation provided via ambiguity parameter
+                if ambiguity and col in ambiguity:
+                    matched_vars.append(ambiguity[col])
+                else:
+                    raise AmbiguityError(
+                        f"Ambiguous variable '{col}'. Multiple definitions found: "
+                        f"{[c.__name__ for c in candidates]}. "
+                        f"Use 'ambiguity' parameter to specify which to use, e.g.: "
+                        f"ambiguity={{'{col}': {candidates[0].__name__}}}"
+                    )
+            else:
+                matched_vars.append(candidates[0])
+                
+        # Handle unmatched columns
         mapped_names = {v.name for v in matched_vars}
         unmapped_cols = [col for col in df.columns if col not in mapped_names]
         
-        if unmapped_cols:
-             from varframe.config import VFConfig, ImplicitOperation
-             VFConfig.warn(
-                 ImplicitOperation.ADD_VARIABLE_NO_COMPUTE,
-                 f"Loaded columns {unmapped_cols} do not match any known Variable class. "
-                 "They will be loaded as plain pandas columns."
-             )
+        if discard_unmatched:
+            # Drop unmatched columns
+            cols_to_keep = [v.name for v in matched_vars]
+            df = df[[c for c in cols_to_keep if c in df.columns]]
+        else:
+            # Warn about unmapped columns (old behavior)
+            if unmapped_cols:
+                from varframe.config import VFConfig, ImplicitOperation
+                VFConfig.warn(
+                    ImplicitOperation.ADD_VARIABLE_NO_COMPUTE,
+                    f"Loaded columns {unmapped_cols} do not match any known Variable class. "
+                    "They will be loaded as plain pandas columns."
+                )
 
         # Try to infer name from path
         name = "varframe"
@@ -907,6 +979,10 @@ class VarFrame(pd.DataFrame):
     def load_parquet(
         cls, 
         path: Union[str, Any], 
+        variables: Optional[List[VariableType]] = None,
+        exclude: Optional[List[VariableType]] = None,
+        discard_unmatched: bool = True,
+        ambiguity: Optional[Dict[str, VariableType]] = None,
         **kwargs: Any
     ) -> VarFrame:
         """
@@ -918,64 +994,28 @@ class VarFrame(pd.DataFrame):
         
         Args:
             path: Path to the Parquet file.
-            **kwargs: Arguments passed to pd.read_parquet.
+            variables: Whitelist of variable classes to load. If provided, only 
+                these variables will be matched. Acts as implicit disambiguation
+                and overrides hash-based resolution.
+            exclude: Blacklist of variable classes to exclude from loading.
+                Cannot be used together with `variables`.
+            discard_unmatched: If True (default), columns not matching any known
+                variable are dropped. If False, they are kept as plain columns.
+            ambiguity: Dict mapping variable names to specific classes for 
+                disambiguation. Overrides hash-based resolution for specified names.
+            **kwargs: Arguments passed to pyarrow/pandas read functions.
             
         Returns:
             A reconstructed VarFrame.
+            
+        Raises:
+            ValueError: If both `variables` and `exclude` are provided.
         """
         import json
         
-        # Load data
-        df = pd.read_parquet(path, **kwargs)
-        
-        known_vars = cls._discover_all_variables()
-        matched_vars = []
-        
-        # Try reading metadata (requires pyarrow)
-        try:
-            import pyarrow.parquet as pq
-            meta = pq.read_metadata(path)
-            if meta.metadata and b'varframe_variables' in meta.metadata:
-                var_names = json.loads(meta.metadata[b'varframe_variables'])
-                for name in var_names:
-                    if name in known_vars:
-                        matched_vars.append(known_vars[name])
-                    # Note: We don't warn here if a variable is missing from environment
-                    # because it might simply not be imported yet.
-        except (ImportError, Exception):
-            # Fallback or strict fail? 
-            # Fallback to column matching matches user expectation of "same as CSV"
-            pass
-            
-        # If metadata didn't yield results (or wasn't present), fallback to columns
-        if not matched_vars:
-             for col in df.columns:
-                if col in known_vars:
-                    matched_vars.append(known_vars[col])
-
-        # Warn about unmapped columns
-        mapped_names = {v.name for v in matched_vars}
-        unmapped_cols = [col for col in df.columns if col not in mapped_names]
-        
-        if unmapped_cols:
-             from varframe.config import VFConfig, ImplicitOperation
-             VFConfig.warn(
-                 ImplicitOperation.ADD_VARIABLE_NO_COMPUTE,
-                 f"Loaded columns {unmapped_cols} do not match any known Variable class. "
-                 "They will be loaded as plain pandas columns."
-             )
-
-        # Try to infer name from path
-        name = "varframe"
-        if isinstance(path, str):
-            import os
-            name = os.path.splitext(os.path.basename(path))[0]
-
-        # ------------------- Integrity Check -------------------
-        # Compare loaded variables against current environment
-        
-        # Warning Aggregation
-        warnings = []
+        # Validation
+        if variables is not None and exclude is not None:
+            raise ValueError("Cannot use both 'variables' and 'exclude' parameters together.")
         
         # ANSI Colors
         RED = "\033[91m"
@@ -983,14 +1023,124 @@ class VarFrame(pd.DataFrame):
         WHITE = "\033[37m"
         RESET = "\033[0m"
         
-        # Only verify if we have matched variables and hashes are available
+        warnings_list = []
+        
+        # Try reading metadata first (requires pyarrow)
         file_hashes = {}
-        if 'meta' in locals() and meta.metadata and b'varframe_hashes' in meta.metadata:
-            try:
-                file_hashes = json.loads(meta.metadata[b'varframe_hashes'])
-            except Exception:
-                pass
+        var_names_from_meta = []
+        all_columns = []
+        
+        try:
+            import pyarrow.parquet as pq
+            meta = pq.read_metadata(path)
+            # Get column names from schema
+            all_columns = list(meta.schema.names)
+            if meta.metadata:
+                if b'varframe_variables' in meta.metadata:
+                    var_names_from_meta = json.loads(meta.metadata[b'varframe_variables'])
+                if b'varframe_hashes' in meta.metadata:
+                    file_hashes = json.loads(meta.metadata[b'varframe_hashes'])
+        except ImportError:
+            pass
+        
+        known_vars = cls._discover_all_variables()
+        
+        # Determine which columns to load based on parameters
+        if variables is not None:
+            # Whitelist mode - use provided classes directly
+            target_names = [v.name for v in variables]
+            whitelist_by_name: Dict[str, VariableType] = {v.name: v for v in variables}
+        elif exclude is not None:
+            exclude_names = {v.name for v in exclude}
+            source_names = var_names_from_meta if var_names_from_meta else all_columns
+            target_names = [n for n in source_names if n not in exclude_names]
+            whitelist_by_name = None
+        else:
+            target_names = None  # Load all
+            whitelist_by_name = None
+        
+        # Use pyarrow column selection for efficiency
+        try:
+            import pyarrow.parquet as pq
+            if target_names is not None:
+                # Only read requested columns
+                cols_to_read = [c for c in target_names if c in all_columns]
+                table = pq.read_table(path, columns=cols_to_read, **kwargs)
+            else:
+                table = pq.read_table(path, **kwargs)
+            df = table.to_pandas()
+        except ImportError:
+            # Fallback to pandas (less efficient)
+            df = pd.read_parquet(path, **kwargs)
+            if target_names is not None:
+                available = [c for c in target_names if c in df.columns]
+                df = df[available]
+        
+        matched_vars = []
+        
+        # Determine variable names to look for
+        if target_names is not None:
+            names_to_resolve = target_names
+        else:
+            names_to_resolve = var_names_from_meta if var_names_from_meta else df.columns
+
+        for name in names_to_resolve:
+            # Handle case where name is in metadata but not in known_vars (not imported)
+            if name not in known_vars:
+                continue
+            
+            # If whitelist mode, use the whitelisted class directly
+            if whitelist_by_name is not None:
+                if name in whitelist_by_name:
+                    matched_vars.append(whitelist_by_name[name])
+                continue
                 
+            candidates = known_vars[name]
+            
+            # Check for multiple candidates (ambiguity)
+            if len(candidates) > 1:
+                # Require explicit disambiguation
+                if ambiguity and name in ambiguity:
+                    matched_vars.append(ambiguity[name])
+                else:
+                    from varframe.exceptions import AmbiguityError
+                    raise AmbiguityError(
+                        f"Ambiguous variable '{name}'. Multiple definitions found: "
+                        f"{[c.__name__ for c in candidates]}. "
+                        f"Use 'ambiguity' parameter to specify which to use, e.g.: "
+                        f"ambiguity={{'{name}': {candidates[0].__name__}}}"
+                    )
+            else:
+                # Single candidate - use it
+                matched_vars.append(candidates[0])
+
+        # Handle unmatched columns
+        mapped_names = {v.name for v in matched_vars}
+        unmapped_cols = [col for col in df.columns if col not in mapped_names]
+        
+        if discard_unmatched:
+            # Drop unmatched columns
+            cols_to_keep = [v.name for v in matched_vars]
+            df = df[[c for c in cols_to_keep if c in df.columns]]
+        else:
+            # Warn about unmapped columns (old behavior)
+            if unmapped_cols:
+                from varframe.config import VFConfig, ImplicitOperation
+                VFConfig.warn(
+                    ImplicitOperation.ADD_VARIABLE_NO_COMPUTE,
+                    f"Loaded columns {unmapped_cols} do not match any known Variable class. "
+                    "They will be loaded as plain pandas columns."
+                )
+
+        # Try to infer name from path
+        vf_name = "varframe"
+        if isinstance(path, str):
+            import os
+            vf_name = os.path.splitext(os.path.basename(path))[0]
+
+        # ------------------- Integrity Check -------------------
+        # Compare loaded variables against current environment
+        
         if file_hashes:
             for var in matched_vars:
                 if var.name not in file_hashes:
@@ -1008,7 +1158,7 @@ class VarFrame(pd.DataFrame):
                     diffs.append("Calculation logic changed")
                     severity = max(severity, 3)
                     
-                # 2. Dependencies (RED) - Note: This catches ripple effects too if hash logic is good
+                # 2. Dependencies (RED)
                 if stored.get("deps") != current["deps"]:
                     diffs.append("Dependencies changed")
                     severity = max(severity, 3)
@@ -1029,14 +1179,14 @@ class VarFrame(pd.DataFrame):
                     elif severity == 2: color = ORANGE
                     
                     msg = f"{color}Variable '{var.name}': {', '.join(diffs)}{RESET}"
-                    warnings.append(msg)
+                    warnings_list.append(msg)
                     
-        if warnings:
+        if warnings_list:
             print(f"\n{ORANGE}VarFrame Integrity Check Warnings:{RESET}")
-            for w in warnings:
+            for w in warnings_list:
                 print(f"  {w}")
 
-        return cls.from_pandas(df, variables=matched_vars, name=name)
+        return cls.from_pandas(df, variables=matched_vars, name=vf_name)
 
 
 
