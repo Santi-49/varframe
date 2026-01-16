@@ -1,0 +1,1105 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Declarative DataFrame variable management with automatic DAG dependency resolution and ML model integration">
+      
+      
+        <meta name="author" content="Santiago Romagosa">
+      
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../api_reference/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>User Guide - VarFrame</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#user-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="VarFrame" class="md-header__button md-logo" aria-label="VarFrame" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            VarFrame
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              User Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  User Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../api_reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  API Reference
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="VarFrame" class="md-nav__button md-logo" aria-label="VarFrame" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    VarFrame
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-setup-imports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Setup &amp; Imports
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-base-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Base Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-derived-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Derived Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-lazy-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Lazy Loading
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-machine-learning-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Machine Learning Models
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Machine Learning Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#defining-the-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defining the Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getting-predictions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Predictions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Execution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-using-lazy-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Using Lazy Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-import-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Import / Export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-data-integrity-hashing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Data Integrity &amp; Hashing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-advanced-loading-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Advanced Loading Options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Advanced Loading Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#column-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Column Selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handling-ambiguity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Handling Ambiguity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unmatched-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unmatched Columns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#full-runnable-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full Runnable Code
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-setup-imports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Setup &amp; Imports
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-base-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Base Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-derived-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Derived Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-lazy-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Lazy Loading
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-machine-learning-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Machine Learning Models
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Machine Learning Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#defining-the-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defining the Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getting-predictions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Predictions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Execution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-using-lazy-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Using Lazy Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-import-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Import / Export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-data-integrity-hashing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Data Integrity &amp; Hashing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-advanced-loading-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Advanced Loading Options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Advanced Loading Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#column-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Column Selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handling-ambiguity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Handling Ambiguity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unmatched-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unmatched Columns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#full-runnable-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full Runnable Code
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="user-guide">User Guide</h1>
+<p>This guide details the core components and workflows of VarFrame. We will build a complete pipeline to predict <strong>Customer Lifetime Value (LTV)</strong>.</p>
+<p>You can follow along step-by-step. A complete, runnable script is provided at the bottom of this page.</p>
+<h2 id="1-setup-imports">1. Setup &amp; Imports</h2>
+<p>First, we import the necessary components. VarFrame integrates seamlessly with pandas and scikit-learn.</p>
+<pre><code class="language-python">import pandas as pd
+from sklearn.linear_model import LinearRegression
+from varframe import VarFrame, BaseVariable, DerivedVariable, BaseModel, ModelVariable
+</code></pre>
+<h2 id="2-base-variables">2. Base Variables</h2>
+<p><strong>Base Variables</strong> represent the columns in your raw input data. They act as the "contract" for your pipeline, ensuring the input data has the expected structure.</p>
+<ul>
+<li><code>raw_column</code>: The exact name of the column in your input DataFrame.</li>
+<li><code>dtype</code>: (Optional) The type to cast the data to.</li>
+</ul>
+<pre><code class="language-python">class AvgOrderValue(BaseVariable):
+    raw_column = &quot;avg_order_value&quot;
+    dtype = &quot;float&quot;
+
+class PurchaseFrequency(BaseVariable):
+    raw_column = &quot;purchase_frequency&quot;
+    dtype = &quot;float&quot;
+</code></pre>
+<h2 id="3-derived-variables">3. Derived Variables</h2>
+<p><strong>Derived Variables</strong> are calculated from other variables. This is where you define your feature engineering logic.</p>
+<ul>
+<li><code>dependencies</code>: A list of other variable classes this variable needs. VarFrame uses this to determine execution order.</li>
+<li><code>calculate(cls, df)</code>: The method that performs the transformation.</li>
+</ul>
+<pre><code class="language-python">class AnnualRevenue(DerivedVariable):
+    dependencies = [AvgOrderValue, PurchaseFrequency]
+
+    @classmethod
+    def calculate(cls, df):
+        # We access data using .name to be safe and consistent
+        return df[AvgOrderValue.name] * df[PurchaseFrequency.name]
+</code></pre>
+<h2 id="4-lazy-loading">4. Lazy Loading</h2>
+<p>Sometimes a variable is expensive to compute (e.g., API calls, complex simulations) and not always needed. You can mark these as <strong>Lazy</strong>.</p>
+<ul>
+<li><code>lazy = True</code>: The variable is <strong>not</strong> computed by default when you run <code>resolve()</code>.</li>
+<li>It is computed <strong>only</strong> when you explicitly ask for it (e.g., <code>vf[CustomerScore]</code>).</li>
+</ul>
+<pre><code class="language-python">class CustomerScore(DerivedVariable):
+    dependencies = [AnnualRevenue]
+    lazy = True
+
+    @classmethod
+    def calculate(cls, df):
+        print(&quot;Performing expensive calculation for Customer Score...&quot;)
+        return df[AnnualRevenue.name] * 0.1
+</code></pre>
+<h2 id="5-machine-learning-models">5. Machine Learning Models</h2>
+<p>VarFrame treats ML models as first-class citizens in the dependency graph.</p>
+<h3 id="defining-the-model">Defining the Model</h3>
+<p><code>BaseModel</code> defines the schema of your model: what goes in, what comes out, and what algorithm to use.</p>
+<pre><code class="language-python"># The target variable we want to predict (for training)
+class LifetimeValue(BaseVariable):
+    name = &quot;lifetime_value&quot;
+    raw_column = &quot;lifetime_value&quot;
+
+class LTVPredictor(BaseModel):
+    name = &quot;ltv_predictor&quot;
+    input_vars = [AvgOrderValue, PurchaseFrequency, AnnualRevenue]
+    target_var = LifetimeValue
+    model_class = LinearRegression
+</code></pre>
+<h3 id="getting-predictions">Getting Predictions</h3>
+<p><code>ModelVariable</code> represents the <em>output</em> of the model.</p>
+<pre><code class="language-python">class PredictedLTV(ModelVariable):
+    name = &quot;predicted_ltv&quot;
+    model_class = LTVPredictor
+</code></pre>
+<p><strong>Auto-Training:</strong> If <code>PredictedLTV</code> is requested but <code>LTVPredictor</code> hasn't been trained, VarFrame will automatically train the model using the current DataFrame (if <code>target_var</code> is present).</p>
+<h2 id="6-execution">6. Execution</h2>
+<p>Now we initialize the <code>VarFrame</code> with some raw data and resolve our target variables.</p>
+<pre><code class="language-python"># 1. Initialize with raw data
+data = pd.DataFrame({
+    &quot;avg_order_value&quot;: [50.0, 100.0, 20.0, 80.0],
+    &quot;purchase_frequency&quot;: [4, 2, 10, 1],
+    &quot;lifetime_value&quot;: [220.0, 210.0, 250.0, 90.0]
+})
+
+vf = VarFrame(data)
+
+# 2. Resolve Dependencies
+# We asks for PredictedLTV. VarFrame figures out the rest:
+# AnnualRevenue -&gt; Train LTVPredictor -&gt; Predict LTV
+vf.resolve(PredictedLTV)
+
+print(vf[[AvgOrderValue, AnnualRevenue, PredictedLTV]])
+</code></pre>
+<h2 id="7-using-lazy-variables">7. Using Lazy Variables</h2>
+<p>Lazy variables remain uncomputed until accessed.</p>
+<pre><code class="language-python">print(f&quot;Is score computed? {'customerscore' in vf.columns}&quot;)
+
+# Accessing triggers the calculation
+score = vf[CustomerScore]
+
+print(f&quot;Is score computed now? {'customerscore' in vf.columns}&quot;)
+</code></pre>
+<h2 id="8-import-export">8. Import / Export</h2>
+<p>When exporting, you can force all lazy variables to be computed using <code>include=['all']</code>.</p>
+<pre><code class="language-python"># Export everything, including lazy variables
+vf.to_csv(&quot;customer_ltv.csv&quot;, index=False, include=['all'])
+</code></pre>
+<h2 id="9-data-integrity-hashing">9. Data Integrity &amp; Hashing</h2>
+<p>VarFrame ensures that the data you load matches the code you are running. When exporting to Parquet, it embeds a recursive hash of the variable definitions (logic, dependencies, attributes).</p>
+<p>When loading, it compares these hashes with your current code and warns you of discrepancies:</p>
+<ul>
+<li><strong>Logic Change (Red)</strong>: The calculation method or source column has changed.</li>
+<li><strong>Dependency Change (Red)</strong>: A variable this depends on has changed.</li>
+<li><strong>Type Change (Orange)</strong>: The data type (<code>dtype</code>) has changed.</li>
+<li><strong>Metadata Change (White)</strong>: Description or Lazy flag changed (usually safe).</li>
+</ul>
+<pre><code class="language-python"># Warns if 'AnnualRevenue' logic changed since export
+vf = VarFrame.load_parquet(&quot;pipeline_v1.parquet&quot;)
+</code></pre>
+<h2 id="10-advanced-loading-options">10. Advanced Loading Options</h2>
+<p>Both <code>load_csv</code> and <code>load_parquet</code> support powerful filtering and disambiguation:</p>
+<h3 id="column-selection">Column Selection</h3>
+<pre><code class="language-python"># Whitelist: Only load specific variables
+vf = VarFrame.load_csv(&quot;data.csv&quot;, variables=[AvgOrderValue, AnnualRevenue])
+
+# Blacklist: Exclude certain variables
+vf = VarFrame.load_parquet(&quot;data.parquet&quot;, exclude=[LegacyVariable])
+</code></pre>
+<h3 id="handling-ambiguity">Handling Ambiguity</h3>
+<p>When multiple variable classes share the same <code>name</code>, you must disambiguate:</p>
+<pre><code class="language-python"># Explicit disambiguation
+vf = VarFrame.load_csv(&quot;data.csv&quot;, ambiguity={&quot;revenue&quot;: AnnualRevenueV2})
+</code></pre>
+<p>If ambiguity is not resolved, an <code>AmbiguityError</code> is raised.</p>
+<h3 id="unmatched-columns">Unmatched Columns</h3>
+<p>By default, columns not matching any known variable are dropped. To keep them:</p>
+<pre><code class="language-python">vf = VarFrame.load_csv(&quot;data.csv&quot;, discard_unmatched=False)
+</code></pre>
+<hr />
+<h2 id="full-runnable-code">Full Runnable Code</h2>
+<p>Here is the complete script combining all the steps above.</p>
+<pre><code class="language-python">import pandas as pd
+from sklearn.linear_model import LinearRegression
+from varframe import VarFrame, BaseVariable, DerivedVariable, BaseModel, ModelVariable
+
+# --- Variables ---
+class AvgOrderValue(BaseVariable):
+    raw_column = &quot;avg_order_value&quot;
+
+class PurchaseFrequency(BaseVariable):
+    raw_column = &quot;purchase_frequency&quot;
+
+class AnnualRevenue(DerivedVariable):
+    dependencies = [AvgOrderValue, PurchaseFrequency]
+    @classmethod
+    def calculate(cls, df):
+        return df[AvgOrderValue.name] * df[PurchaseFrequency.name]
+
+class CustomerScore(DerivedVariable):
+    dependencies = [AnnualRevenue]
+    lazy = True
+    @classmethod
+    def calculate(cls, df):
+        return df[AnnualRevenue.name] * 0.1
+
+# --- Model ---
+class LifetimeValue(BaseVariable):
+    name = &quot;lifetime_value&quot;
+    raw_column = &quot;lifetime_value&quot;
+
+class LTVPredictor(BaseModel):
+    name = &quot;ltv_predictor&quot;
+    input_vars = [AvgOrderValue, PurchaseFrequency, AnnualRevenue]
+    target_var = LifetimeValue
+    model_class = LinearRegression
+
+class PredictedLTV(ModelVariable):
+    name = &quot;predicted_ltv&quot;
+    model_class = LTVPredictor
+
+# --- Execution ---
+if __name__ == &quot;__main__&quot;:
+    data = pd.DataFrame({
+        &quot;avg_order_value&quot;: [50.0, 100.0, 20.0, 80.0],
+        &quot;purchase_frequency&quot;: [4, 2, 10, 1],
+        &quot;lifetime_value&quot;: [220.0, 210.0, 250.0, 90.0]
+    })
+
+    vf = VarFrame(data)
+
+    # 1. Resolve &amp; Auto-Train
+    vf.resolve(PredictedLTV)
+    print(&quot;Predictions:\n&quot;, vf[PredictedLTV])
+
+    # 2. Lazy Load
+    print(&quot;\nCustomer Score (JIT):\n&quot;, vf[CustomerScore])
+
+    # 3. Export
+    vf.to_csv(&quot;output.csv&quot;, include=['all'])
+    print(&quot;\nExported pipeline results.&quot;)
+</code></pre>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
