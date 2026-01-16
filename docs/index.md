@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="ima/logo.png" alt="VarFrame Logo" width="300">
+</p>
+
 # Welcome to VarFrame
 
 **Declarative DataFrame variable management with automatic DAG dependency resolution.**
